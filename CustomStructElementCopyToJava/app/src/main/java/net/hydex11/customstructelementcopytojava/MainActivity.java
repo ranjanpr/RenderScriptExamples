@@ -7,6 +7,8 @@ import android.renderscript.ScriptC;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.ViewGroup;
+import android.widget.LinearLayout;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -14,7 +16,7 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
 public class MainActivity extends AppCompatActivity {
-    private static final String TAG = "Example";
+    private static final String TAG = "Java";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -24,7 +26,21 @@ public class MainActivity extends AppCompatActivity {
         example();
     }
 
+    LogView logView;
+
     private void example() {
+
+        // Initialize log view
+        LinearLayout linearLayout = (LinearLayout) findViewById(R.id.linearLayout);
+
+        // Create a view to see LogCat log
+        logView = new LogView(this, new String[]{TAG, "RenderScript"}, 5);
+        logView.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+
+        logView.addLogLine("Wait for logs. It is going to take some seconds...\n");
+
+        // Add our console view to the window
+        linearLayout.addView(logView);
 
         // Initialize RS context
         RenderScript mRS = RenderScript.create(this);
@@ -44,7 +60,7 @@ public class MainActivity extends AppCompatActivity {
 
         //--- Copy process
         // Define destination array
-        byte destinationArray[] = new byte[sizeX * sizeY * ScriptField_GrayPointOrdered.Item.sizeof];
+        byte destinationArray[] = new byte[allocationGrayPointOrdered.getBytesSize()];
 
         // Gets reflected method
         Method copyToWithoutValidationMethod = getCopyToWithoutValidationMethod();
@@ -78,7 +94,7 @@ public class MainActivity extends AppCompatActivity {
                         new ScriptField_GrayPointOrdered.Item();
 
                 // Calculate the offset in the source array
-                int currentOffset = (x + y * sizeY) * ScriptField_GrayPointOrdered.Item.sizeof;
+                int currentOffset = (x + y * sizeX) * ScriptField_GrayPointOrdered.Item.sizeof;
 
                 // Gets data from the byte array
                 currentItem.x = byteBuffer.getInt(currentOffset);
@@ -93,17 +109,12 @@ public class MainActivity extends AppCompatActivity {
         // Debugs elements
         for (int x = 0; x < sizeX; x++) {
             for (int y = 0; y < sizeY; y++) {
-                debugElement(mappedItems, x, y);
+                ScriptField_GrayPointOrdered.Item item = mappedItems[x][y];
+                Log.d(TAG, String.format("(%d,%d): x=%d, y=%d, a=%d, b=%d",
+                        x, y, item.x, item.y, item.a, item.b));
             }
         }
 
-    }
-
-    private void debugElement(ScriptField_GrayPointOrdered.Item mappedItems[][],
-                              int x, int y) {
-        ScriptField_GrayPointOrdered.Item item = mappedItems[x][y];
-        Log.d(TAG, String.format("(%d,%d): x=%d, y=%d, a=%d, b=%d",
-                x, y, item.x, item.y, item.a, item.b));
     }
 
     private static Method getCopyToWithoutValidationMethod() {
@@ -119,4 +130,21 @@ public class MainActivity extends AppCompatActivity {
 
         return allocationHiddenCopyToMethod;
     }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (logView != null) {
+            logView.onResume();
+        }
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        if (logView != null) {
+            logView.onPause();
+        }
+    }
+
 }
